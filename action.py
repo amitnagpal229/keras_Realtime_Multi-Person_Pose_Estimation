@@ -6,7 +6,7 @@ import time
 import pickle
 from config_reader import config_reader
 
-from processing3 import extract_parts, get_model_blob, draw
+from processing_action import extract_parts, get_model_blob, draw
 
 from model.cmu_model import get_testing_model
 
