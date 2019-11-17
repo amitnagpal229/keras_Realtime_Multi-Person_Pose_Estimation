@@ -107,6 +107,7 @@ if __name__ == '__main__':
                         help='Int 1 (fastest, lowest quality) to 4 (slowest, highest quality)')
     parser.add_argument('--end', type=int, default=None, help='Last video frame to analyze')
     parser.add_argument('--start', type=int, default=None, help='First video frame to analyze')
+    parser.add_argument('--output_file_prefix', type=str, default=None, help='extra label in filename')
     parser.add_argument('--generate_model_blobs', action='store_true', help='generate model blobs on gpu')
     parser.add_argument('--generate_pose_from_blob', action='store_true', help='generate pose from model blobs')
     parser.add_argument('--save_output_video', action='store_true', help='draw pose on input video file')
@@ -118,12 +119,16 @@ if __name__ == '__main__':
     process_speed = args.process_speed
     ending_frame = args.end
     starting_frame = args.start
+    output_file_prefix = ""
+
+    if args.output_file_prefix is not None:
+        output_file_prefix = "_" + args.output_file_prefix
 
     # load config
     params, model_params = config_reader()
-    blobs_file = args.video.rsplit(".", 1)[0] + "_blobs.pkl"
-    pose_file = args.video.rsplit(".", 1)[0] + "_pose.pkl"
-    output_file = args.video.rsplit(".", 1)[0] + "_output.mp4"
+    blobs_file = args.video.rsplit(".", 1)[0] + output_file_prefix + "_blobs.pkl"
+    pose_file = args.video.rsplit(".", 1)[0] + output_file_prefix + "_pose.pkl"
+    output_file = args.video.rsplit(".", 1)[0] + output_file_prefix + "_output.mp4"
 
     if starting_frame is None:
         starting_frame = 0

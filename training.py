@@ -41,5 +41,10 @@ if __name__ == '__main__':
     print(len(segments))
     video_list = {}
     for key, value in segments.items():
-        print(f"{key.rsplit('-', 1)[0]} {value[2]}")
-        video_list[key.rsplit("-", 1)[0]] = value[2]
+        video_file = key.rsplit('-', 1)[0] + ".mp4"
+        start_frame = value[1] - 90
+        end_frame = value[1] + 45
+        prefix = value[0] + "_" + str(start_frame) + "_" + str(end_frame)
+        print(f'python action.py --generate_pose --video videos/training/{video_file} --output_file_prefix "{prefix}" --start {start_frame} --end {end_frame} --frame_ratio 3')
+        #print(f"{key.rsplit('-', 1)[0]} {value[2]}")
+        #video_list[key.rsplit("-", 1)[0]] = value[2]
