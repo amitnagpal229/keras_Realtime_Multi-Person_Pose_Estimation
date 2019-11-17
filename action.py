@@ -3,9 +3,10 @@ import sys
 import argparse
 import cv2
 import time
+import pickle
 from config_reader import config_reader
 
-from processing import extract_parts, draw
+from processing import extract_parts, draw, get_model_predictions
 
 from model.cmu_model import get_testing_model
 
@@ -23,6 +24,8 @@ if __name__ == '__main__':
     parser.add_argument('--process_speed', type=int, default=4,
                         help='Int 1 (fastest, lowest quality) to 4 (slowest, highest quality)')
     parser.add_argument('--end', type=int, default=None, help='Last video frame to analyze')
+    parser.add_argument('--save_predictions', type=str, default=None, help='save model predictions to file')
+    parser.add_argument('--load_predictions', type=str, default=None, help='load model predictions from file')
 
     args = parser.parse_args()
 
@@ -30,6 +33,8 @@ if __name__ == '__main__':
     frame_rate_ratio = args.frame_ratio
     process_speed = args.process_speed
     ending_frame = args.end
+    save_predictions = args.save_predictions
+    load_predictions = args.load_predictions
 
     print('start processing...')
 
@@ -71,6 +76,12 @@ if __name__ == '__main__':
 
     params['scale_search'] = scale_search
 
+    predictions = None
+    if load_predictions != None:
+        predictions = pickle.load(open(load_predictions, "rb"))
+    elif save_predictions != None:
+      predictions = {}
+
     i = 0  # default is 0
     while(cam.isOpened()) and ret_val is True and i < ending_frame:
         if i % frame_rate_ratio == 0:
@@ -80,15 +91,20 @@ if __name__ == '__main__':
             tic = time.time()
 
             # generate image with body parts
-            all_peaks, subset, candidate = extract_parts(input_image, params, model, model_params)
-            canvas = draw(orig_image, all_peaks, subset, candidate)
+            if save_predictions != None:
+                predictions[i] = get_model_predictions(input_image, params, model, model_params)
+            else:
+                all_peaks, subset, candidate = extract_parts(input_image, params, model, model_params, predictions[i])
+                canvas = draw(orig_image, all_peaks, subset, candidate)
+                out.write(canvas)
 
             print('Processing frame: ', i)
             toc = time.time()
             print('processing time is %.5f' % (toc - tic))
 
-            out.write(canvas)
-
         ret_val, orig_image = cam.read()
 
         i += 1
+
+    if save_predictions != None:
+        pickle.dump(predictions, open(save_predictions, "wb"))

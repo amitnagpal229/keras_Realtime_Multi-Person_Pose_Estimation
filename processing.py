@@ -6,8 +6,22 @@ import cv2
 
 import util
 
+def get_model_predictions(input_image, params, model, model_params):
+    multiplier = [x * model_params['boxsize'] / input_image.shape[0] for x in params['scale_search']]
 
-def extract_parts(input_image, params, model, model_params):
+    predictions = {}
+    for scale in multiplier:
+        image_to_test = cv2.resize(input_image, (0, 0), fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC)
+        image_to_test_padded, pad = util.pad_right_down_corner(image_to_test, model_params['stride'],
+                                                               model_params['padValue'])
+
+        # required shape (1, width, height, channels)
+        input_img = np.transpose(np.float32(image_to_test_padded[:, :, :, np.newaxis]), (3, 0, 1, 2))
+
+        predictions[scale] = model.predict(input_img)
+    return predictions
+
+def extract_parts(input_image, params, model, model_params, predictions):
     multiplier = [x * model_params['boxsize'] / input_image.shape[0] for x in params['scale_search']]
 
     # Body parts location heatmap, one per part (19)
@@ -23,7 +37,10 @@ def extract_parts(input_image, params, model, model_params):
         # required shape (1, width, height, channels)
         input_img = np.transpose(np.float32(image_to_test_padded[:, :, :, np.newaxis]), (3, 0, 1, 2))
 
-        output_blobs = model.predict(input_img)
+        if predictions != None:
+            output_blobs = predictions[scale]
+        else:
+            output_blobs = model.predict(input_img)
 
         # extract outputs, resize, and remove padding
         heatmap = np.squeeze(output_blobs[1])  # output 1 is heatmaps
