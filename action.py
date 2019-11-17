@@ -16,7 +16,13 @@ currentDT = time.localtime()
 start_datetime = time.strftime("-%m-%d-%H-%M-%S", currentDT)
 
 
-def generate_model_blobs(in_video_file, ending_frame):
+def generate_model_blobs(in_video_file, starting_frame, ending_frame):
+    # load model
+    # authors of original model don't use
+    # vgg normalization (subtracting mean) on input images
+    model = get_testing_model()
+    model.load_weights(keras_weights_file)
+
     # Video reader
     cam = cv2.VideoCapture(in_video_file)
     input_fps = cam.get(cv2.CAP_PROP_FPS)
@@ -26,8 +32,20 @@ def generate_model_blobs(in_video_file, ending_frame):
     if ending_frame is None:
         ending_frame = video_length
 
+    scale_search = [1, .5, 1.5, 2]  # [.5, 1, 1.5, 2]
+    scale_search = scale_search[0:process_speed]
+    params['scale_search'] = scale_search
+
+    if ending_frame is None:
+        ending_frame = video_length
+
+    i = 0
+    if starting_frame > 0:
+        while (cam.isOpened()) and ret_val is True and i < starting_frame:
+            ret_val, orig_image = cam.read()
+            i += 1
+
     blobs = {}
-    i = 0  # default is 0
     while (cam.isOpened()) and ret_val is True and i < ending_frame:
         if i % frame_rate_ratio == 0:
             input_image = cv2.cvtColor(orig_image, cv2.COLOR_RGB2BGR)
@@ -88,15 +106,18 @@ if __name__ == '__main__':
     parser.add_argument('--process_speed', type=int, default=4,
                         help='Int 1 (fastest, lowest quality) to 4 (slowest, highest quality)')
     parser.add_argument('--end', type=int, default=None, help='Last video frame to analyze')
+    parser.add_argument('--start', type=int, default=None, help='First video frame to analyze')
     parser.add_argument('--generate_model_blobs', action='store_true', help='generate model blobs on gpu')
-    parser.add_argument('--generate_pose', action='store_true', help='generate pose from model blobs')
+    parser.add_argument('--generate_pose_from_blob', action='store_true', help='generate pose from model blobs')
     parser.add_argument('--save_output_video', action='store_true', help='draw pose on input video file')
+    parser.add_argument('--generate_pose', action='store_true', help='generate pose from video file')
 
     args = parser.parse_args()
     keras_weights_file = args.model
     frame_rate_ratio = args.frame_ratio
     process_speed = args.process_speed
     ending_frame = args.end
+    starting_frame = args.start
 
     # load config
     params, model_params = config_reader()
@@ -104,31 +125,15 @@ if __name__ == '__main__':
     pose_file = args.video.rsplit(".", 1)[0] + "_pose.pkl"
     output_file = args.video.rsplit(".", 1)[0] + "_output.mp4"
 
+    if starting_frame is None:
+        starting_frame = 0
+
     print('start processing...')
     if args.generate_model_blobs:
-        # load model
-        # authors of original model don't use
-        # vgg normalization (subtracting mean) on input images
-        model = get_testing_model()
-        model.load_weights(keras_weights_file)
-
-        # Video reader
-        cam = cv2.VideoCapture(args.video)
-        input_fps = cam.get(cv2.CAP_PROP_FPS)
-        ret_val, orig_image = cam.read()
-        video_length = int(cam.get(cv2.CAP_PROP_FRAME_COUNT))
-
-        if ending_frame is None:
-            ending_frame = video_length
-
-        scale_search = [1, .5, 1.5, 2]  # [.5, 1, 1.5, 2]
-        scale_search = scale_search[0:process_speed]
-        params['scale_search'] = scale_search
-
-        model_blobs = generate_model_blobs(args.video, ending_frame)
+        model_blobs = generate_model_blobs(args.video, starting_frame, ending_frame)
         pickle.dump(model_blobs, open(blobs_file, "wb"))
 
-    if args.generate_pose:
+    if args.generate_pose_from_blob:
         model_blobs = pickle.load(open(blobs_file, "rb"))
         pose = generate_pose(model_blobs)
         pickle.dump(pose, open(pose_file, "wb"))
@@ -136,3 +141,9 @@ if __name__ == '__main__':
     if args.save_output_video:
         pose = pickle.load(open(pose_file, "rb"))
         save_output_video(args.video, output_file, pose, ending_frame)
+
+    if args.generate_pose:
+        model_blobs = generate_model_blobs(args.video, starting_frame, ending_frame)
+        pose = generate_pose(model_blobs)
+        pickle.dump(pose, open(pose_file, "wb"))
+
