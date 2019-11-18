@@ -8,11 +8,6 @@ import numpy as np
 import math
 import json
 from config_reader import config_reader
-
-from processing_action import extract_parts, get_model_blob, draw
-
-from model.cmu_model import get_testing_model
-
 import util
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
@@ -35,6 +30,8 @@ for i, limb in enumerate(limb_id_to_str):
 
 
 def generate_model_blobs(in_video_file, starting_frame, ending_frame):
+    from model.cmu_model import get_testing_model
+    from processing_action import get_model_blob
     # load model
     # authors of original model don't use
     # vgg normalization (subtracting mean) on input images
@@ -79,6 +76,7 @@ def generate_model_blobs(in_video_file, starting_frame, ending_frame):
 
 
 def generate_pose(blobs):
+    from processing_action import extract_parts
     pose = {}
     for frame in blobs:
         tic = time.time()
@@ -89,6 +87,8 @@ def generate_pose(blobs):
 
 
 def save_output_video(in_video_file, out_video_file, pose, ending_frame):
+    from processing_action import draw
+
     # Video reader
     cam = cv2.VideoCapture(in_video_file)
     input_fps = cam.get(cv2.CAP_PROP_FPS)
