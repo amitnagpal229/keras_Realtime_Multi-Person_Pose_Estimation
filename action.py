@@ -4,16 +4,34 @@ import argparse
 import cv2
 import time
 import pickle
+import numpy as np
+import math
+import json
 from config_reader import config_reader
 
 from processing_action import extract_parts, get_model_blob, draw
 
 from model.cmu_model import get_testing_model
 
+import util
+
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 currentDT = time.localtime()
 start_datetime = time.strftime("-%m-%d-%H-%M-%S", currentDT)
+
+bp_id_to_str = ["nose", "neck", "rshoulder", "relbow", "rwrist", "lshoulder", "lelbow", "lwrist", "rhip", "rknee",
+                "rankle", "lhip", "lknee", "lankle", "reye", "leye", "rear", "lear"]
+bp_str_to_id = {}
+for i, part in enumerate(bp_id_to_str):
+    bp_str_to_id[part] = i
+
+limb_id_to_str = ["rshoulder", "lshoulder", "rupperarm", "rlowerarm", "lupperarm", "llowerarm", "rhipneck",
+                  "rupperleg", "rlowerleg", "lhipneck", "lupperleg", "llowerleg", "noseneck", "reyenose", "reyeear",
+                  "leyenose", "leyeear"]
+limb_str_to_id = {}
+for i, limb in enumerate(limb_id_to_str):
+    limb_str_to_id[limb] = i
 
 
 def generate_model_blobs(in_video_file, starting_frame, ending_frame):
@@ -112,6 +130,7 @@ if __name__ == '__main__':
     parser.add_argument('--generate_pose_from_blob', action='store_true', help='generate pose from model blobs')
     parser.add_argument('--save_output_video', action='store_true', help='draw pose on input video file')
     parser.add_argument('--generate_pose', action='store_true', help='generate pose from video file')
+    parser.add_argument('--generate_features', action='store_true', help='generate custom features based on pose pkl')
 
     args = parser.parse_args()
     keras_weights_file = args.model
@@ -129,6 +148,7 @@ if __name__ == '__main__':
     blobs_file = args.video.rsplit(".", 1)[0] + output_file_prefix + "_blobs.pkl"
     pose_file = args.video.rsplit(".", 1)[0] + output_file_prefix + "_pose.pkl"
     output_file = args.video.rsplit(".", 1)[0] + output_file_prefix + "_output.mp4"
+    feature_file = args.video.rsplit(".", 1)[0] + output_file_prefix + "_features"
 
     if starting_frame is None:
         starting_frame = 0
@@ -151,4 +171,72 @@ if __name__ == '__main__':
         model_blobs = generate_model_blobs(args.video, starting_frame, ending_frame)
         pose = generate_pose(model_blobs)
         pickle.dump(pose, open(pose_file, "wb"))
+
+    if args.generate_features:
+        pose = pickle.load(open(pose_file, "rb"))
+
+        video_positions = {}
+        for frame in pose:
+            all_peaks, subset, candidate = pose[frame]
+
+            body_parts = {}  # body part id -> list of all instances (across all people)
+            for i in range(len(bp_id_to_str)):
+                key = bp_id_to_str[i]
+                body_parts[key] = list()
+                for peak in all_peaks[i]:
+                    body_parts[key].append({"x": int(peak[0]), "y": int(peak[1]), "s": int(peak[2])})
+
+            people = list()  # list of persons. person is a list of LimbLocations
+            for person_id in range(len(subset)):
+                person = {}
+                for limb in range(len(limb_id_to_str)):
+                    key = limb_id_to_str[limb]
+                    index = subset[person_id][np.array(util.limbSeq[limb])-1]
+                    if -1 in index:
+                        continue
+                    X = candidate[index.astype(int), 0]
+                    Y = candidate[index.astype(int), 1]
+                    mX = np.mean(X)
+                    mY = np.mean(Y)
+                    length = ((X[0] - X[1]) ** 2 + (Y[0] - Y[1]) ** 2) ** 0.5
+                    angle = math.degrees(math.atan2(Y[0] - Y[1], X[0] - X[1]))
+                    person[key] = {"from": (int(X[0]), int(Y[0])), "to": (int(X[1]), int(Y[1])), "len": float(length), "ang": float(angle), "s": 1}
+                people.append(person)
+
+            video_positions[frame] = {"body_parts": body_parts, "people": people}
+
+        pickle.dump(video_positions, open(feature_file + ".pkl", "wb"))
+        json.dump(video_positions, open(feature_file + ".json", "w"), sort_keys=True, indent=4, separators=(',', ': '))
+#        fp = open(feature_file + ".json", "wb")
+#        str1 = json.dumps(video_positions, sort_keys=True, indent=4, separators=(',', ': '))
+#        print(str1)
+# Dead code:
+#         class Positions:
+#             def __init__(self, body_parts, people):
+#                 self.body_parts = body_parts
+#                 self.people = people
+#
+#
+#         class BodyPartLocation:
+#             def __init__(self, x, y, score):
+#                 self.x = x
+#                 self.y = y
+#                 self.score = score
+#
+#
+#         class LimbLocation:
+#             def __init__(self, x1, y1, x2, y2, length, angle, score):
+#                 self.x1 = x1
+#                 self.y1 = y1
+#                 self.x2 = x2
+#                 self.y2 = y2
+#                 self.length = length
+#                 self.angle = angle
+#                 self.score = score
+# body_parts[i].append(BodyPartLocation(peak[0], peak[1], peak[2]))
+# person[limb] = LimbLocation(X[0], Y[0], X[1], Y[1], length, angle, 1)
+# video_positions[frame] = Positions(body_parts, people)
+
+
+
 
