@@ -118,7 +118,7 @@ def save_output_video(in_video_file, out_video_file, pose, ending_frame):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--video', type=str, required=True, help='input video file name')
+    parser.add_argument('--video', type=str, required=False, help='input video file name')
     parser.add_argument('--model', type=str, default='model/keras/model.h5', help='path to the weights file')
     parser.add_argument('--frame_ratio', type=int, default=1, help='analyze every [n] frames')
     parser.add_argument('--process_speed', type=int, default=4,
@@ -130,7 +130,7 @@ if __name__ == '__main__':
     parser.add_argument('--generate_pose_from_blob', action='store_true', help='generate pose from model blobs')
     parser.add_argument('--save_output_video', action='store_true', help='draw pose on input video file')
     parser.add_argument('--generate_pose', action='store_true', help='generate pose from video file')
-    parser.add_argument('--generate_features', action='store_true', help='generate custom features based on pose pkl')
+    parser.add_argument('--generate_features', type=str, help='generate custom features based on pose pkl')
 
     args = parser.parse_args()
     keras_weights_file = args.model
@@ -148,7 +148,7 @@ if __name__ == '__main__':
     blobs_file = args.video.rsplit(".", 1)[0] + output_file_prefix + "_blobs.pkl"
     pose_file = args.video.rsplit(".", 1)[0] + output_file_prefix + "_pose.pkl"
     output_file = args.video.rsplit(".", 1)[0] + output_file_prefix + "_output.mp4"
-    feature_file = args.video.rsplit(".", 1)[0] + output_file_prefix + "_features"
+    #feature_file = args.video.rsplit(".", 1)[0] + output_file_prefix + "_features"
 
     if starting_frame is None:
         starting_frame = 0
@@ -172,8 +172,9 @@ if __name__ == '__main__':
         pose = generate_pose(model_blobs)
         pickle.dump(pose, open(pose_file, "wb"))
 
-    if args.generate_features:
-        pose = pickle.load(open(pose_file, "rb"))
+    if args.generate_features is not None:
+        #pose = pickle.load(open(pose_file, "rb"))
+        pose = pickle.load(open(args.generate_features, "rb"))
 
         video_positions = {}
         for frame in pose:
@@ -205,6 +206,7 @@ if __name__ == '__main__':
 
             video_positions[frame] = {"body_parts": body_parts, "people": people}
 
+        feature_file = args.generate_features.rsplit("_", 1)[0] + "_features"
         pickle.dump(video_positions, open(feature_file + ".pkl", "wb"))
         json.dump(video_positions, open(feature_file + ".json", "w"), sort_keys=True, indent=4, separators=(',', ': '))
 #        fp = open(feature_file + ".json", "wb")
