@@ -118,7 +118,7 @@ def save_output_video(in_video_file, out_video_file, pose, ending_frame):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--video', type=str, required=False, help='input video file name')
+    parser.add_argument('--video', type=str, required=True, help='input video file name')
     parser.add_argument('--model', type=str, default='model/keras/model.h5', help='path to the weights file')
     parser.add_argument('--frame_ratio', type=int, default=1, help='analyze every [n] frames')
     parser.add_argument('--process_speed', type=int, default=4,
