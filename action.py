@@ -85,6 +85,33 @@ def generate_pose(blobs):
         print(f"Generate pose, frame: {frame}, took {toc - tic} seconds")
     return pose
 
+def save_original_video(in_video_file, out_video_file, ending_frame):
+    # Video reader
+    cam = cv2.VideoCapture(in_video_file)
+    input_fps = cam.get(cv2.CAP_PROP_FPS)
+    ret_val, orig_image = cam.read()
+    video_length = int(cam.get(cv2.CAP_PROP_FRAME_COUNT))
+
+    if ending_frame is None:
+        ending_frame = video_length
+
+    # Video writer
+    output_fps = input_fps / frame_rate_ratio
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    out = cv2.VideoWriter(out_video_file, fourcc, output_fps, (orig_image.shape[1], orig_image.shape[0]))
+
+    i = 0
+    if starting_frame > 0:
+        while (cam.isOpened()) and ret_val is True and i < starting_frame:
+            ret_val, orig_image = cam.read()
+            i += 1
+
+    while (cam.isOpened()) and ret_val is True and i < ending_frame:
+        if i % frame_rate_ratio == 0:
+            out.write(orig_image)
+        ret_val, orig_image = cam.read()
+        i += 1
+    out.release()
 
 def save_output_video(in_video_file, out_video_file, pose, ending_frame):
     from processing_action import draw
@@ -129,6 +156,7 @@ if __name__ == '__main__':
     parser.add_argument('--generate_model_blobs', action='store_true', help='generate model blobs on gpu')
     parser.add_argument('--generate_pose_from_blob', action='store_true', help='generate pose from model blobs')
     parser.add_argument('--save_output_video', action='store_true', help='draw pose on input video file')
+    parser.add_argument('--save_original_video', action='store_true', help='save original video segment')
     parser.add_argument('--generate_pose', action='store_true', help='generate pose from video file')
     parser.add_argument('--generate_features', type=str, help='generate custom features based on pose pkl')
 
@@ -148,6 +176,7 @@ if __name__ == '__main__':
     blobs_file = args.video.rsplit(".", 1)[0] + output_file_prefix + "_blobs.pkl"
     pose_file = args.video.rsplit(".", 1)[0] + output_file_prefix + "_pose.pkl"
     output_file = args.video.rsplit(".", 1)[0] + output_file_prefix + "_output.mp4"
+    original_file = args.video.rsplit(".", 1)[0] + output_file_prefix + "_original.mp4"
     #feature_file = args.video.rsplit(".", 1)[0] + output_file_prefix + "_features"
 
     if starting_frame is None:
@@ -171,6 +200,9 @@ if __name__ == '__main__':
         model_blobs = generate_model_blobs(args.video, starting_frame, ending_frame)
         pose = generate_pose(model_blobs)
         pickle.dump(pose, open(pose_file, "wb"))
+
+    if args.save_original_video:
+        save_original_video(args.video, original_file, ending_frame)
 
     if args.generate_features is not None:
         #pose = pickle.load(open(pose_file, "rb"))
