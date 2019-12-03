@@ -217,7 +217,7 @@ if __name__ == '__main__':
                 key = bp_id_to_str[i]
                 body_parts[key] = list()
                 for peak in all_peaks[i]:
-                    body_parts[key].append({"x": int(peak[0]), "y": int(peak[1]), "s": int(peak[2])})
+                    body_parts[key].append({"x": int(peak[0]), "y": int(peak[1]), "s": peak[2]})
 
             people = list()  # list of persons. person is a list of LimbLocations
             for person_id in range(len(subset)):
