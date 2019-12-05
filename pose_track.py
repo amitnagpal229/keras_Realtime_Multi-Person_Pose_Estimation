@@ -48,12 +48,6 @@ def get_track_weight_matrix(bbox):
     matrix[y0:y1, x0:x1] = 1
     return matrix
 
-def get_tracks_weight_matrix(frame_tracks):
-    tracks_matrix = {}
-    for track, bbox in frame_tracks.items():
-        tracks_matrix[track] = get_track_weight_matrix(bbox)
-    return tracks_matrix
-
 
 def get_limb_polygon(limb):
     x0, y0 = limb['from']
@@ -75,16 +69,6 @@ def get_person_pose_weight_matrix(person_pose):
     return matrix
 
 
-def get_poses_weight_matrix(people_poses):
-    poses_matrix = {}
-    person_id = 0
-    for person_pose in people_poses:
-        poses_matrix[person_id] = get_person_pose_weight_matrix(person_pose)
-        person_id += 1
-
-    return poses_matrix
-
-
 def get_pose_limits_xyxy(person_pose):
     x0, y0, x1, y1 = (im_width-1, im_height-1, 0, 0)
     for limb in person_pose.values():
@@ -95,24 +79,7 @@ def get_pose_limits_xyxy(person_pose):
     return x0, y0, x1, y1
 
 
-def match_tracks_poses(frame_tracks_matrix, frame_poses_matrix):
-    match_matrix = np.zeros((len(frame_tracks_matrix), len(frame_poses_matrix)))
-    tracks = list(frame_tracks_matrix.keys())
-    for track, track_id in enumerate(tracks):
-        for pose in frame_poses_matrix:
-            match_matrix[track][pose] = np.sum(np.multiply(frame_tracks_matrix[track_id], frame_poses_matrix[pose]))
-
-    frame_tracks_pose = {}
-    index = np.unravel_index(np.argmax(match_matrix), match_matrix.shape)
-    while match_matrix.size > 0 and match_matrix[index] > 0:
-        frame_tracks_pose[tracks[int(index[0])]] = int(index[1])
-        match_matrix = np.delete(np.delete(match_matrix, index[0], axis=0), index[1], axis=1)
-        index = np.unravel_index(np.argmax(match_matrix), match_matrix.shape)
-
-    return frame_tracks_pose
-
-
-def match_tracks_poses_opt(bboxes, people_poses):
+def match_tracks_poses(bboxes, people_poses):
     match_matrix = np.zeros((len(bboxes), len(people_poses)))
     tracks = list(bboxes.keys())
 
@@ -210,19 +177,7 @@ def process():
         people_poses = all_poses[pose_frame_id]["people"]
         bboxes = filter_big_bboxes(all_tracks[frame_id])
 
-        # start_track_weight = time.time()
-        # frame_tracks_weight_matrix = get_tracks_weight_matrix(bboxes)
-        # print_time('track weight', start_track_weight, time.time())
-        #
-        # start_pose_weight = time.time()
-        # frame_poses_weight_matrix = get_poses_weight_matrix(people_poses)
-        # print_time('pose weight', start_pose_weight, time.time())
-        #
-        # start_match = time.time()
-        # frame_tracks_pose = match_tracks_poses(frame_tracks_weight_matrix, frame_poses_weight_matrix)
-        # print_time('match', start_match, time.time())
-
-        frame_tracks_pose = match_tracks_poses_opt(bboxes, people_poses)
+        frame_tracks_pose = match_tracks_poses(bboxes, people_poses)
 
         drawn_pose_indices = list()
         canvas = orig_image.copy()
