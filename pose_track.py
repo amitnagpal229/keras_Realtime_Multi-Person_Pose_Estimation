@@ -6,11 +6,10 @@ import numpy as np
 import math
 import json
 
-from action import limb_str_to_id
+from action import limb_str_to_id, limb_id_to_str
 from util import colors
 
-num_pose_limbs = 12
-pose_array_length = 12*7  # number of pose limbs by 7 numbers per limb (x0, y1, x1, y1, len, angle, vel)
+pose_array_length = len(limb_id_to_str)*7  # number of pose limbs by 7 numbers per limb (x0, y1, x1, y1, len, angle, vel)
 gray = [128, 128, 128]
 COLORS_10 =[(144,238,144),(178, 34, 34),(221,160,221),(  0,255,  0),(  0,128,  0),(210,105, 30),(220, 20, 60),
             (192,192,192),(255,228,196),( 50,205, 50),(139,  0,139),(100,149,237),(138, 43,226),(238,130,238),
@@ -107,7 +106,7 @@ def match_tracks_poses(bboxes, people_poses):
 def get_pose_array(pose):
     pose_array = np.zeros(pose_array_length)
     for limb in pose:
-        index = limb_str_to_id[limb]
+        index = limb_str_to_id[limb] * 7
         limb_position = pose[limb]
         pose_array[index] = limb_position['from'][0]
         pose_array[index + 1] = limb_position['from'][1]
@@ -163,6 +162,7 @@ def filter_big_bboxes(bboxes):
 def process():
     frame_count = len(all_poses)
     tracks_pose = {}  # track_id -> frame_count x pose matrix
+    unmatched_poses = {}  # frame -> poses
     previous_frame_id = -1  # Previous video frame processed
     out_frame_id = -1
     pose_frame_id_offset = min(all_poses.keys())
@@ -181,13 +181,16 @@ def process():
 
         drawn_pose_indices = list()
         canvas = orig_image.copy()
+        unmatched_poses[pose_frame_id] = list()
         for track in bboxes:
-            if track not in tracks_pose:
-                tracks_pose[track] = np.zeros((frame_count, pose_array_length))
             if track in frame_tracks_pose:
+                if track not in tracks_pose:
+                    # tracks_pose[track] = np.zeros((frame_count, pose_array_length))
+                    tracks_pose[track] = {}
                 pose_index = frame_tracks_pose[track]
-                pose_array = get_pose_array(people_poses[pose_index])
-                tracks_pose[track][out_frame_id] = pose_array
+                tracks_pose[track][pose_frame_id] = people_poses[pose_index]
+                #pose_array = get_pose_array(people_poses[pose_index])
+                #tracks_pose[track][out_frame_id] = pose_array
                 drawn_pose_indices.append(pose_index)
 
                 #  draw bbox and pose
@@ -199,13 +202,15 @@ def process():
 
         for index in range(len(people_poses)):  # draw pose in grayscale
             if index not in drawn_pose_indices:
-                canvas = draw_pose(canvas, people_poses[index], gray)
+                pose = people_poses[index]
+                unmatched_poses[pose_frame_id].append(pose)
+                canvas = draw_pose(canvas, pose, gray)
 
         draw_frame_num(canvas, out_frame_id, pose_frame_id)
         cam_out.write(canvas)
         print_time(f'frame {frame_id}', start_frame, time.time())
 
-    return tracks_pose
+    return tracks_pose, unmatched_poses
 
 
 def print_time(label, start, end):
