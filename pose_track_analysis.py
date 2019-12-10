@@ -85,49 +85,171 @@ def get_max_travel(history, value):
     low_diff = abs(low-value)
     high_diff = abs(high-value)
     if low_diff >= high_diff:
-        return value - low
+        return value - low if value - low > -200 else 0
     else:
-        return value - high
+        return value - high if value - low > -200 else 0
+
+
+def shift_point(point, frame):
+    if point is None:
+        return None
+    elif basket_location_unknown:
+        return point
+
+    basket = np.array(get_basket(frame))
+    if left_basket:
+        point = np.array(point) - basket + np.array((basket_hspace, basket_vspace))
+    else:
+        point = np.array(point) - basket + np.array((im_width-basket_hspace, basket_vspace))
+
+    if not (0 <= point[0] <= 1920) or point[1] <= 0:
+        return None
+    else:
+        return point[0], point[1]
 
 
 def process(tracks, unmatched_poses):
-    track_filter = {}
-    frame_ids = sorted(unmatched_poses.keys())
+    player_travels = {}
+    player_positions = {}
+    shifted_positions = {}
+    jumps = list()
+    key_frames = []
+    frame_ids = sorted(all_baskets.keys())
     frame_offset = frame_ids[0]
     for track in tracks:
-        filter = np.zeros((3, len(frame_ids)), dtype=np.int16)
-        for frame, pose in tracks[track].items():
-            hip = get_hip_joint(pose)
-            if hip is not None:
-                frame_index = int((frame - frame_offset) / 3)
-                filter[:, frame_index] = hip[0], hip[1], arms_up(pose)
+        player_position = np.zeros((3, len(frame_ids)), dtype=np.int16)
+        shifted_position = np.zeros((3, len(frame_ids)), dtype=np.int16)
+        player_positions[track] = player_position
+        shifted_positions[track] = shifted_position
+        for frame in frame_ids:
+            if frame in tracks[track]:
+                pose = tracks[track][frame]
+                hip = get_hip_joint(pose)
+                hip_shifted = shift_point(hip, frame)
+                if hip_shifted is not None:
+                    frame_index = int((frame - frame_offset) / 3)
+                    player_position[:, frame_index] = hip[0], hip[1], arms_up(pose)
+                    shifted_position[:, frame_index] = hip_shifted[0], hip_shifted[1], arms_up(pose)
 
-        mean_filter = np.zeros((3, len(frame_ids)), dtype=np.int16)
+        player_travel = np.zeros((3, len(frame_ids)), dtype=np.int16)
         for i in range(1, len(frame_ids)):
-            history = filter[:, max(0, i - 5): i]
-            mean_filter[2][i] = max(np.max(history[2]), filter[2][i])
-            mean_filter[1][i] = get_max_travel(history[1], filter[1][i])
-            mean_filter[0][i] = get_max_travel(history[0], filter[0][i])
-        track_filter[track] = mean_filter
+            history = shifted_position[:, max(0, i - 5): i]
+            player_travel[2][i] = np.sum(history[2]) + shifted_position[2][i]
+            player_travel[1][i] = get_max_travel(history[1], shifted_position[1][i])
+            player_travel[0][i] = get_max_travel(history[0], shifted_position[0][i])
+        player_travels[track] = player_travel
 
-        neg_run = 0
-        arms = 0
-        for i in range(4, len(frame_ids)):
-            if np.argwhere(mean_filter[1][i-4:i] < -20).shape[0] == 4 and mean_filter[2][i] >= 1:
+        previous_jump_frame = -1
+        for i in range(3, len(frame_ids)):
+            if shifted_position[1][i] > 0 and np.argwhere(player_travel[1][i-3:i] < -30).shape[0] == 3 and np.min(player_travel[1][i-3:i]) < -70 and player_travel[2][i] >= 1:
                 print(f"Track: {track}, jumped around frame: {i}")
+                frame_i = frame_ids[i]
+                jump = {'end_frame_id': frame_ids[i], 'track_id': track, 'basket': get_basket(frame_i),
+                        'player_position': player_position[:, i], 'shifted_position': shifted_position[:, i],
+                        'player_travel': player_travel[:, i]}
+                if frame_i in tracks[track]:
+                    jump['pose'] = tracks[track][frame_i]
+                jump['previous_frame_ids'] = list()
+                for j in range(i-3, i):
+                    frame_j = frame_ids[j]
+                    if frame_j in tracks[track]:
+                        jump['previous_frame_ids'].append({'frame_id': frame_j,
+                                                           'basket': get_basket(frame_j),
+                                                           'pose': tracks[track][frame_j],
+                                                           'player_position': player_position[:, j],
+                                                           'shifted_position': shifted_position[:, j],
+                                                           'player_travel': player_travel[:, j]
+                                                           })
+                if previous_jump_frame == i-1:
+                    del key_frames[-1]
+                    del jumps[-1]
+                jumps.append(jump)
+                key_frames.append(jump['end_frame_id'])
+                previous_jump_frame = i
 
-    return track_filter
+    return jumps, player_travels, player_positions, shifted_positions, key_frames
+
+
+def get_basket(frame_id):
+    if frame_id in all_baskets:
+        xy = all_baskets[frame_id][0]
+        return xy[0]+int(basket_width/2), xy[1]-int(basket_height/2)
+    elif left_basket:
+        return 0, 0
+    else:
+        return im_width-1, 0
+
+
+# Fills baskets in frames that don't have a basket
+# Returns True if basket is on the left, else false if it is on the right
+def smooth_baskets(baskets):
+    frame_ids = sorted(baskets.keys())
+    missing_frames = {}
+    previous_frame_id = frame_ids[0]
+    left_count = 0  # How many times did we see the basket on left half of the frame
+    for frame in frame_ids[1:]:
+        if baskets[frame][0][0] < im_width / 2:
+            left_count += 1
+        step = int((frame - previous_frame_id) / basket_frame_ratio)
+        for i in range(step-1):
+            missing_frames[previous_frame_id + basket_frame_ratio * (i + 1)] = \
+                fit_missing_point(baskets[frame][0], baskets[previous_frame_id][0], step-1, i+1), \
+                fit_missing_point(baskets[frame][1], baskets[previous_frame_id][1], step-1, i+1)
+        previous_frame_id = frame
+
+    baskets.update(missing_frames)
+    return left_count > len(frame_ids) / 2
+
+
+def fit_missing_point(left, right, num_missing, position):
+    l = np.array(left)
+    r = np.array(right)
+    missing = l + position * (r - l) / (num_missing + 1)
+    return int(missing[0]), int(missing[1])
+
+
+def get_court_xy_limits(basket):
+    x = 0
+    y = (max(0, basket[1] - basket_vspace), im_height)
+    if left_basket:
+        x = (max(0, basket[0] - basket_hspace), im_width)
+    else:
+        x = (0, min(im_width, basket[0] + args.basket_hspace))
+    return x, y
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--pose_track_pkl_file', type=str, required=True, help='pose track pkl file name')
+    parser.add_argument('--pose_track_pkl', type=str, required=True, help='pose track pkl file name')
+    parser.add_argument('--basket_pkl', type=str, required=True, help='basket bbox pkl file name')
 
     args = parser.parse_args()
-    track_file = args.pose_track_pkl_file
-    out_file = track_file.rsplit(".", 1)[0] + "_analysis.pkl"
+    track_file = args.pose_track_pkl
+    out_jump_file = track_file.rsplit(".", 1)[0] + "_jumps.pkl"
+    out_keyframes_file = track_file.rsplit(".", 1)[0] + "_keyframes.txt"
+
+    basket_frame_ratio = 3
+    im_width = 1920
+    im_height = 1080
+    basket_width = 70
+    basket_height = 50
+    basket_vspace = 50
+    basket_hspace = 140
 
     tracks, poses = pickle.load(open(track_file, "rb"))
-    analysis = process(tracks, poses)
+    all_baskets = {}
+    basket_location_unknown = False
+    try:
+        all_baskets = pickle.load(open(args.basket_pkl, "rb"))
+        left_basket = smooth_baskets(all_baskets)
+    except:
+        for frame in poses:
+            all_baskets[frame] = ((0, 0), (0, 0))
+        left_basket = True
+        basket_location_unknown = True
+        print("Basket file not found, will not adjust for camera motion")
 
-    pickle.dump(analysis, open(out_file, "wb"))
+    jumps, player_travels, player_positions, shifted_positions, key_frames = process(tracks, poses)
+
+    pickle.dump((jumps, player_travels, player_positions, shifted_positions), open(out_jump_file, "wb"))
+    print(key_frames, file=open(out_keyframes_file, 'w'))

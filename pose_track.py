@@ -79,6 +79,9 @@ def get_pose_limits_xyxy(person_pose):
 
 
 def match_tracks_poses(bboxes, people_poses):
+    if len(bboxes) == 0 or len(people_poses) == 0:
+        return {}
+
     match_matrix = np.zeros((len(bboxes), len(people_poses)))
     tracks = list(bboxes.keys())
 
