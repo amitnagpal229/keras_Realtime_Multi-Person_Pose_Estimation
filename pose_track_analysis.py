@@ -141,9 +141,9 @@ def process(tracks, unmatched_poses):
 
         previous_jump_frame = -1
         for i in range(3, len(frame_ids)):
-            if shifted_position[1][i] > 0 and np.argwhere(player_travel[1][i-3:i] < -30).shape[0] == 3 and np.min(player_travel[1][i-3:i]) < -70 and player_travel[2][i] >= 1:
-                print(f"Track: {track}, jumped around frame: {i}")
+            if shifted_position[1][i] > 0 and np.argwhere(player_travel[1][i-3:i] < -30).shape[0] == 3 and np.min(player_travel[1][i-3:i]) < -55 and player_travel[2][i] >= 1:
                 frame_i = frame_ids[i]
+                print(f"Track: {track}, jumped around frame: {frame_i}")
                 jump = {'end_frame_id': frame_ids[i], 'track_id': track, 'basket': get_basket(frame_i),
                         'player_position': player_position[:, i], 'shifted_position': shifted_position[:, i],
                         'player_travel': player_travel[:, i]}
