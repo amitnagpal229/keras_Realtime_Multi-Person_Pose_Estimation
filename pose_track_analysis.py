@@ -305,6 +305,7 @@ if __name__ == '__main__':
     out_train_prefix = track_file.rsplit("_", 2)[-3]
     video_name = out_train_prefix.rsplit("/", 1)[-1]
 
+    print(f"Processing {video_name}")
     basket_frame_ratio = 3
     im_width = 1920
     im_height = 1080
