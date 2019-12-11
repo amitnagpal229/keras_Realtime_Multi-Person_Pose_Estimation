@@ -331,6 +331,8 @@ if __name__ == '__main__':
 
     pickle.dump((jumps, player_travels, player_positions, shifted_positions), open(out_jump_file, "wb"))
     print(key_frames, file=open(out_keyframes_file, 'w'))
-    print_training_file(tmove, "move_labels.txt")
-    print_training_file(tjump, "jump_labels.txt")
-    print_training_file(tmj, "mj_labels.txt")
+
+    if not basket_location_unknown:
+        print_training_file(tmove, "move_labels.txt")
+        print_training_file(tjump, "jump_labels.txt")
+        print_training_file(tmj, "mj_labels.txt")
