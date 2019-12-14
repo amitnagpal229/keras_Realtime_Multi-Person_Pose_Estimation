@@ -1,0 +1,79 @@
+Configuration: -50, any one frame arms raised, look at last 4
+1. Three pointer from front -output.9_three-pointer_1769_1904, threshold -50
+Track: 2, jumped around frame: 15
+Track: 2, jumped around frame: 16
+Track: 5, jumped around frame: 17
+2. Doesn't work well for outputN.104_dunk_407_542
+
+
+Configuration: -20, at least two frame arms raised, look at last 4
+1. Dunk outputN.104_dunk_407_542:
+Track: 11, jumped around frame: 7
+2. output.9_three-pointer_1769_1904 is better too -
+Track: 5, jumped around frame: 17
+
+
+Configuration: -20, at least two frame arms raised, look at last 3
+0. outputN.17_dunk_382_517:
+Track: 7, jumped around frame: 24
+1. Dunk outputN.104_dunk_407_542:
+Track: 11, jumped around frame: 6
+Track: 11, jumped around frame: 7
+2. output.9_three-pointer_1769_1904 is better too -
+Track: 5, jumped around frame: 15
+Track: 5, jumped around frame: 16
+Track: 5, jumped around frame: 17
+    end_frame_id: xxx
+
+Configuration: -30, at least one frame arms raised, look at last 3
+/outputN.26_dunk_2464_2599
+Track: 11, jumped around frame: 31
+2. output.9_three-pointer_1769_1904 is better too -
+Track: 2, jumped around frame: 14
+Track: 2, jumped around frame: 15
+Track: 2, jumped around frame: 16
+Track: 5, jumped around frame: 15
+Track: 5, jumped around frame: 16
+Track: 5, jumped around frame: 17
+1. Dunk outputN.104_dunk_407_542: (doesnt 'work very well)
+*** Track: 8, jumped around frame: 36
+*** Track: 8, jumped around frame: 37
+Track: 11, jumped around frame: 6
+Track: 11, jumped around frame: 7
+outputN.17_dunk_382_517
+Track: 7, jumped around frame: 24
+outputN.27_dunk_2097_2232_trackpose: (not so good)
+Track: 4, jumped around frame: 15
+Track: 4, jumped around frame: 16
+Track: 4, jumped around frame: 17
+outputN.10_three-pointer_2178_2313
+Track: 4, jumped around frame: 23
+Track: 4, jumped around frame: 24
+Track: 4, jumped around frame: 25
+Track: 9, jumped around frame: 23
+Track: 9, jumped around frame: 24
+Track: 9, jumped around frame: 25
+
+
+[
+  {
+    track_id: xxx
+    end_frame_id: xxx
+    pose: xxx
+    basket: (x,y)
+    player_position: (x,y)
+    shifted_position: (x,y)
+    player_travel: (x,y)
+    previous_frame_ids: [
+      {
+        frame_id: xxx
+        pose: xxx
+    	basket: (x,y)
+    	player_position: (x,y)
+    	shifted_position: (x,y)
+    	player_travel: (x,y)
+      }
+    ]
+  },
+]
+
