@@ -264,7 +264,7 @@ def process(tracks, unmatched_poses):
                 tmove.append((track, frame_i, class_label, f'1:{x}', f'2:{y}'))
                 tjump.append((track, frame_i, 1, f'1:{max_travel}', f'2:{min_travel}', f'3:{arms_count}'))
                 tmj.append((track, frame_i, class_label,
-                            f'1:{x}', f'2:{y}', f'3{max_travel}', f'4:{min_travel}', f'5:{arms_count}'))
+                            f'1:{x}', f'2:{y}', f'3:{max_travel}', f'4:{min_travel}', f'5:{arms_count}'))
             else:
                 # Generate negative training examples
                 if max_travel < -25 and min_travel < -50 and arms_count == 0:

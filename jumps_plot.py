@@ -1,7 +1,9 @@
 import argparse
 import pickle
 import numpy as np
-import math
+import matplotlib.pyplot as plt
+
+from truth_values import jump_truth, truth_labels
 
 class_labels = ['reserved', 'dunk', 'three-pointer']
 label_str_to_id = {}
@@ -26,7 +28,7 @@ def is_left_basket(jump):
                        - jump['previous_frame_ids'][0]['player_position'][0]
         return net_movement < 0
     else:
-        return jump['basket'][0] <= 0.9*(im_width / 2)
+        return jump['basket'][0] <= 0.9 * (im_width / 2)
 
 
 def add_jumps(jumps, filename, dataset):
@@ -37,13 +39,12 @@ def add_jumps(jumps, filename, dataset):
             left_basket = is_left_basket(jump)
             if not left_basket:
                 position[0] = im_width - position[0]
-            #if basket_position_unknown(jump):
-                #position[0] = position[0] - basket_hspace - int(basket_width/2)
+            # if basket_position_unknown(jump):
+            # position[0] = position[0] - basket_hspace - int(basket_width/2)
             dataset.append((position[0], position[1], get_class_label(filename), len(jumps)))
 
 
 def plot_data(dataset):
-    import matplotlib.pyplot as plt
     """
     color and symbol coding
     red - dunk, green - three pointer
@@ -77,17 +78,37 @@ def plot_data(dataset):
     # Add labels and save to disk
     plt.xlabel('x')
     plt.ylabel('y')
+    plt.ylim(-200, 50)
+    plt.xlim(-100, 100)
     plt.show()
 
 
 def process():
     import glob
     dataset = list()
-    for filename in glob.glob(jumps_dir+"/*_jumps.pkl"):
+    for filename in glob.glob(jumps_dir + "/*_jumps.pkl"):
         jumps, player_travels, player_positions, shifted_positions = pickle.load(open(filename, "rb"))
         add_jumps(jumps, filename, dataset)
 
-    plot_data(dataset)
+    # plot_data(dataset)
+    #plot_data(truth_labels)
+    plot_data(jump_truth)
+
+
+def plot_keras_history(history):
+    plt.figure()
+
+    plt.plot(history.epoch, history.history['loss'], 'r', linewidth=1)
+    #plt.plot(history.epoch, history.history['val_loss'], 'g', linewidth=1)
+
+    font = {'family': 'normal',
+            'weight': 'bold',
+            'size': 22}
+
+#    plt.rc('font', **font)
+    plt.xlabel('epoch')
+    plt.ylabel('loss')
+    plt.show()
 
 
 if __name__ == '__main__':
@@ -102,4 +123,5 @@ if __name__ == '__main__':
     basket_width = 70
     basket_hspace = 140
 
+    #plot_keras_history(pickle.load(open("../model/mm5.h5-training-history.pkl", "rb")))
     process()
